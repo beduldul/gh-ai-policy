@@ -20,6 +20,14 @@ case "$os" in
   *) echo "gh-ai-policy: unsupported OS: $os" >&2; exit 1 ;;
 esac
 
+# Reuse the gh login so the binary is not stuck on the 60-request anonymous
+# quota, and so private repositories work. An explicit token still wins.
+if [ -z "${GITHUB_TOKEN:-}" ] && [ -z "${GH_TOKEN:-}" ]; then
+  if token="$(gh auth token 2>/dev/null)" && [ -n "$token" ]; then
+    export GITHUB_TOKEN="$token"
+  fi
+fi
+
 tag="$(gh api "repos/$REPO/releases/latest" --jq .tag_name 2>/dev/null || true)"
 if [ -z "$tag" ]; then
   echo "gh-ai-policy: $REPO has no published release yet" >&2
