@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# gh-ai-policy — a gh extension for https://github.com/beduldul/ai-policy
+#
+# Fetches the release binary for this platform on first run and caches it.
+# Set GH_AI_POLICY_REFRESH=1 to pull the newest release again.
+
+set -euo pipefail
+
+REPO="beduldul/ai-policy"
+CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/gh-ai-policy"
+
+os="$(uname -s | tr '[:upper:]' '[:lower:]')"
+case "$(uname -m)" in
+  arm64|aarch64) arch="arm64" ;;
+  x86_64|amd64)  arch="amd64" ;;
+  *) echo "gh-ai-policy: unsupported architecture: $(uname -m)" >&2; exit 1 ;;
+esac
+case "$os" in
+  darwin|linux) ;;
+  *) echo "gh-ai-policy: unsupported OS: $os" >&2; exit 1 ;;
+esac
+
+tag="$(gh api "repos/$REPO/releases/latest" --jq .tag_name 2>/dev/null || true)"
+if [ -z "$tag" ]; then
+  echo "gh-ai-policy: $REPO has no published release yet" >&2
+  exit 1
+fi
+
+bin="$CACHE/$tag/ai-policy"
+if [ ! -x "$bin" ] || [ "${GH_AI_POLICY_REFRESH:-0}" = "1" ]; then
+  mkdir -p "$CACHE/$tag"
+  echo "gh-ai-policy: fetching $tag ($os/$arch)" >&2
+  curl -fsSL "https://github.com/$REPO/releases/download/$tag/ai-policy_${os}_${arch}" -o "$bin.tmp"
+  chmod +x "$bin.tmp"
+  mv "$bin.tmp" "$bin"
+fi
+
+exec "$bin" "$@"
