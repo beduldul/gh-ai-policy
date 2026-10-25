@@ -30,4 +30,10 @@ jobs:
         run: |
           chmod +x gh-ai-policy
           ./gh-ai-policy --version
-          ./gh-ai-policy --quiet pallets/click; test $? -eq 20
+          # FORBIDDEN exits 20, which is the expected answer, not a crash.
+          # Capture it before the runner's set -e can abort the step.
+          set +e
+          ./gh-ai-policy --quiet pallets/click
+          code=$?
+          set -e
+          test "$code" -eq 20
